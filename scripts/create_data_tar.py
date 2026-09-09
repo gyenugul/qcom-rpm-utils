@@ -43,7 +43,6 @@ logger = logging.getLogger("create_data_tar")
 
 DEFAULT_BUILDER_IMAGE = "ghcr.io/qualcomm-linux/rpm-builder:centos10"
 ARTIFACTORY_SEARCH_API = "https://qartifactory-edge.qualcomm.com/artifactory/api/search/artifact"
-DOC_DIR_NAMES = ("usr/share/doc", "usr/share/man")
 
 
 def parse_arguments():
@@ -258,32 +257,6 @@ def extract_rpms_to_stage(rpm_paths, stage_dir) -> bool:
     return True
 
 
-def strip_doc_dirs(stage_dir: str) -> None:
-    """
-    Remove common documentation directories (usr/share/doc, usr/share/man)
-    from the staged content before archiving.
-    """
-    for doc_rel in DOC_DIR_NAMES:
-        doc_path = os.path.join(stage_dir, doc_rel)
-        if os.path.isdir(doc_path):
-            shutil.rmtree(doc_path)
-
-
-def gather_notice_and_license(stage_dir: str) -> None:
-    """
-    NOTICE / LICENSE.qcom-2 ship inside the binary rpms themselves at their
-    root, so they land at stage_dir's root during extraction; this just logs
-    whether they were found so create_tar_of_stage's normal top-level walk
-    picks them up along with everything else.
-    """
-    for filename in ('NOTICE', 'LICENSE.qcom-2'):
-        path = os.path.join(stage_dir, filename)
-        if os.path.isfile(path):
-            logger.info(f"Including {filename} from the rpm payload in the tarball.")
-        else:
-            logger.warning(f"No {filename} found in the extracted rpm payload; skipping.")
-
-
 def create_tar_of_stage(stage_dir: str, tar_path: str, top_dir: str) -> str:
     """
     Create tarball at tar_path containing the staged rpm content, nested
@@ -450,9 +423,6 @@ def main():
     if not ok:
         shutil.rmtree(stage_dir, ignore_errors=True)
         sys.exit(1)
-
-    gather_notice_and_license(stage_dir)
-    strip_doc_dirs(stage_dir)
 
     try:
         if args.output_tar:
